@@ -1,0 +1,159 @@
+#include "tools/cabana/imgui/commands.h"
+
+#include <cassert>
+#include <cmath>
+
+// CabanaUndoStack
+
+void CabanaUndoStack::push(CabanaUndoCommand *cmd) {
+  // Remove any redo commands
+  commands_.resize(index_);
+  commands_.emplace_back(cmd);
+  cmd->redo();
+  index_ = commands_.size();
+  if (clean_index_ > index_) clean_index_ = -1;
+}
+
+void CabanaUndoStack::undo() {
+  if (canUndo()) {
+    --index_;
+    commands_[index_]->undo();
+  }
+}
+
+void CabanaUndoStack::redo() {
+  if (canRedo()) {
+    commands_[index_]->redo();
+    ++index_;
+  }
+}
+
+void CabanaUndoStack::clear() {
+  commands_.clear();
+  index_ = 0;
+  clean_index_ = 0;
+}
+
+// EditMsgCommand
+
+EditMsgCommand::EditMsgCommand(const MessageId &id, const std::string &name, int size,
+                               const std::string &node, const std::string &comment)
+    : id(id), new_name(name), new_size(size), new_node(node), new_comment(comment) {
+  if (auto msg = dbc()->msg(id)) {
+    old_name = msg->name;
+    old_size = msg->size;
+    old_node = msg->transmitter;
+    old_comment = msg->comment;
+    setText("edit message " + name + ":" + std::to_string(id.address));
+  } else {
+    setText("new message " + name + ":" + std::to_string(id.address));
+  }
+}
+
+void EditMsgCommand::undo() {
+  if (old_name.empty())
+    dbc()->removeMsg(id);
+  else
+    dbc()->updateMsg(id, old_name, old_size, old_node, old_comment);
+}
+
+void EditMsgCommand::redo() {
+  dbc()->updateMsg(id, new_name, new_size, new_node, new_comment);
+}
+
+// RemoveMsgCommand
+
+RemoveMsgCommand::RemoveMsgCommand(const MessageId &id) : id(id) {
+  if (auto msg = dbc()->msg(id)) {
+    message = *msg;
+    setText("remove message " + message.name + ":" + std::to_string(id.address));
+  }
+}
+
+void RemoveMsgCommand::undo() {
+  if (!message.name.empty()) {
+    dbc()->updateMsg(id, message.name, message.size, message.transmitter, message.comment);
+    for (auto s : message.getSignals())
+      dbc()->addSignal(id, *s);
+  }
+}
+
+void RemoveMsgCommand::redo() {
+  if (!message.name.empty())
+    dbc()->removeMsg(id);
+}
+
+// AddSigCommand
+
+AddSigCommand::AddSigCommand(const MessageId &id, const cabana::Signal &sig)
+    : id(id), signal(sig) {
+  setText("add signal " + sig.name + " to " + msgName(id) + ":" + std::to_string(id.address));
+}
+
+void AddSigCommand::undo() {
+  dbc()->removeSignal(id, signal.name);
+  if (msg_created) dbc()->removeMsg(id);
+}
+
+void AddSigCommand::redo() {
+  if (auto msg = dbc()->msg(id); !msg) {
+    msg_created = true;
+    dbc()->updateMsg(id, dbc()->newMsgName(id), can->lastMessage(id).dat.size(), "", "");
+  }
+  if (signal.name.empty() || (dbc()->msg(id) && dbc()->msg(id)->sig(signal.name) != nullptr)) {
+    signal.name = dbc()->newSignalName(id);
+  }
+  if (signal.min == 0.0 && signal.max == 0.0) {
+    signal.max = std::pow(2.0, signal.size) - 1.0;
+  }
+  dbc()->addSignal(id, signal);
+}
+
+// RemoveSigCommand
+
+RemoveSigCommand::RemoveSigCommand(const MessageId &id, const cabana::Signal *sig)
+    : id(id) {
+  sigs.push_back(*sig);
+  if (sig->type == cabana::Signal::Type::Multiplexor) {
+    for (const auto &s : dbc()->msg(id)->sigs) {
+      if (s->type == cabana::Signal::Type::Multiplexed) {
+        sigs.push_back(*s);
+      }
+    }
+  }
+  setText("remove signal " + sig->name + " from " + msgName(id) + ":" + std::to_string(id.address));
+}
+
+void RemoveSigCommand::undo() { for (const auto &s : sigs) dbc()->addSignal(id, s); }
+void RemoveSigCommand::redo() { for (const auto &s : sigs) dbc()->removeSignal(id, s.name); }
+
+// EditSignalCommand
+
+EditSignalCommand::EditSignalCommand(const MessageId &id, const cabana::Signal *sig, const cabana::Signal &new_sig)
+    : id(id) {
+  sigs.push_back({*sig, new_sig});
+  if (sig->type == cabana::Signal::Type::Multiplexor && new_sig.type == cabana::Signal::Type::Normal) {
+    auto msg = dbc()->msg(id);
+    assert(msg);
+    for (const auto &s : msg->sigs) {
+      if (s->type == cabana::Signal::Type::Multiplexed) {
+        auto new_s = *s;
+        new_s.type = cabana::Signal::Type::Normal;
+        sigs.push_back({*s, new_s});
+      }
+    }
+  }
+  setText("edit signal " + sig->name + " in " + msgName(id) + ":" + std::to_string(id.address));
+}
+
+void EditSignalCommand::undo() { for (const auto &s : sigs) dbc()->updateSignal(id, s.second.name, s.first); }
+void EditSignalCommand::redo() { for (const auto &s : sigs) dbc()->updateSignal(id, s.first.name, s.second); }
+
+namespace UndoStack {
+
+CabanaUndoStack *instance() {
+  static CabanaUndoStack undo_stack;
+  return &undo_stack;
+}
+
+}  // namespace UndoStack

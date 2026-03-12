@@ -496,6 +496,11 @@ wheels = [
 ]
 
 [[package]]
+name = "imgui"
+version = "1.92.7"
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=imgui&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
+
+[[package]]
 name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -849,6 +854,7 @@ testing = [
     { name = "ty" },
 ]
 tools = [
+    { name = "imgui" },
     { name = "metadrive-simulator", marker = "platform_machine != 'aarch64'" },
 ]
 
@@ -870,6 +876,7 @@ requires-dist = [
     { name = "gcc-arm-none-eabi", git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases" },
     { name = "git-lfs", git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=releases" },
     { name = "hypothesis", marker = "extra == 'testing'", specifier = "==6.47.*" },
+    { name = "imgui", marker = "extra == 'tools'", git = "https://github.com/commaai/dependencies.git?subdirectory=imgui&rev=releases" },
     { name = "inputs" },
     { name = "jeepney" },
     { name = "jinja2", marker = "extra == 'docs'" },

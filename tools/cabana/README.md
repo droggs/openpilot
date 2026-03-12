@@ -6,11 +6,10 @@ Cabana is a tool developed to view raw CAN data. One use for this is creating an
 
 ```bash
 $ ./cabana -h
-Usage: ./cabana [options] route
+Usage: ./cabana [options] [route]
 
 Options:
   -h, --help                     Displays help on commandline options.
-  --help-all                     Displays help including Qt specific options.
   --demo                         use a demo route instead of providing your own
   --auto                         Auto load the route from the best available source (no video):
                                  internal, openpilotci, comma_api, car_segments, testing_closet
@@ -75,9 +74,7 @@ cabana --zmq <ipaddress>
 
 Replace &lt;ipaddress&gt; with your comma device's IP address.
 
-While streaming from the device, Cabana will log the CAN messages to a local directory. By default, this directory is ~/cabana_live_stream/. You can change the log directory in Cabana by navigating to menu -> tools -> settings.
-
-After disconnecting from the device, you can replay the logged CAN messages from the stream selector dialog -> browse local route.
+While streaming from the device, Cabana will log the CAN messages to a local directory. By default, this directory is `~/cabana_live_stream/`. You can change the log directory from Cabana's `Settings` dialog.
 
 ### Streaming CAN Messages from Panda
 
@@ -87,9 +84,9 @@ To read CAN messages from a connected Panda, use the following command:
 cabana --panda
 ```
 
-### Using the Stream Selector Dialog
+### Launching Without a Stream
 
-If you run Cabana without any arguments, a stream selector dialog will pop up, allowing you to choose the stream.
+If you run Cabana without any arguments, it starts with no active stream and allows you to open one from the `File` menu.
 
 ```shell
 cabana
@@ -98,3 +95,7 @@ cabana
 ## Additional Information
 
 For more information, see the [openpilot wiki](https://github.com/commaai/openpilot/wiki/Cabana)
+
+## GUI Harness
+
+For headless GUI playback and recording inside an agent session, see [the GUI harness docs](tests/gui/README.md).

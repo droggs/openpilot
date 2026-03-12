@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "tools/cabana/utils/util.h"
+#include "tools/cabana/imgui/util.h"
 
 // cabana::Msg
 
@@ -135,7 +135,7 @@ void cabana::Signal::update() {
   float s = 0.25 + 0.25 * (float)(hash & 0xff) / 255.0;
   float v = 0.75 + 0.25 * (float)((hash >> 8) & 0xff) / 255.0;
 
-  color = QColor::fromHsvF(h, s, v);
+  color = CabanaColor::fromHsvF(h, s, v);
   precision = std::max(num_decimals(factor), num_decimals(offset));
 }
 

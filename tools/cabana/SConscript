@@ -1,109 +1,84 @@
-import subprocess
 import os
-import shutil
+
+import imgui
 
 Import('env', 'arch', 'common', 'messaging', 'visionipc', 'cereal')
 
-# Detect Qt - skip build if not available
-if arch == "Darwin":
-  try:
-    brew_prefix = subprocess.check_output(['brew', '--prefix'], encoding='utf8').strip()
-    has_qt = os.path.isdir(os.path.join(brew_prefix, "opt/qt@5"))
-  except (FileNotFoundError, subprocess.CalledProcessError):
-    has_qt = False
-else:
-  has_qt = shutil.which('qmake') is not None
-if not has_qt:
-  Return()
-
+# Always build replay_lib (needed by imgui build too)
 SConscript(['#tools/replay/SConscript'])
 Import('replay_lib')
 
-qt_env = env.Clone()
-qt_modules = ["Widgets", "Gui", "Core"]
-
-qt_libs = []
-if arch == "Darwin":
-  qt_env['QTDIR'] = f"{brew_prefix}/opt/qt@5"
-  qt_dirs = [
-    os.path.join(qt_env['QTDIR'], "include"),
-  ]
-  qt_dirs += [f"{qt_env['QTDIR']}/include/Qt{m}" for m in qt_modules]
-  qt_env["LINKFLAGS"] += ["-F" + os.path.join(qt_env['QTDIR'], "lib")]
-  qt_env["FRAMEWORKS"] += [f"Qt{m}" for m in qt_modules] + ["OpenGL"]
-  qt_env.AppendENVPath('PATH', os.path.join(qt_env['QTDIR'], "bin"))
-else:
-  qt_install_prefix = subprocess.check_output(['qmake', '-query', 'QT_INSTALL_PREFIX'], encoding='utf8').strip()
-  qt_install_headers = subprocess.check_output(['qmake', '-query', 'QT_INSTALL_HEADERS'], encoding='utf8').strip()
-
-  qt_env['QTDIR'] = qt_install_prefix
-  qt_dirs = [
-    f"{qt_install_headers}",
-  ]
-
-  qt_gui_path = os.path.join(qt_install_headers, "QtGui")
-  qt_gui_dirs = [d for d in os.listdir(qt_gui_path) if os.path.isdir(os.path.join(qt_gui_path, d))]
-  qt_dirs += [f"{qt_install_headers}/QtGui/{qt_gui_dirs[0]}/QtGui", ] if qt_gui_dirs else []
-  qt_dirs += [f"{qt_install_headers}/Qt{m}" for m in qt_modules]
-
-  qt_libs = [f"Qt5{m}" for m in qt_modules] + ["GL"]
-qt_env['QT3DIR'] = qt_env['QTDIR']
-qt_env.Tool('qt3')
-
-qt_env['CPPPATH'] += qt_dirs
-qt_flags = [
-  "-D_REENTRANT",
-  "-DQT_NO_DEBUG",
-  "-DQT_WIDGETS_LIB",
-  "-DQT_GUI_LIB",
-  "-DQT_CORE_LIB",
-  "-DQT_MESSAGELOGCONTEXT",
-]
-qt_env['CXXFLAGS'] += qt_flags
-qt_env['LIBPATH'] += ['#selfdrive/ui', ]
-qt_env['LIBS'] = qt_libs
-
-base_frameworks = qt_env['FRAMEWORKS']
-base_libs = [common, messaging, cereal, visionipc, 'm', 'ssl', 'crypto', 'pthread'] + qt_env["LIBS"]
-
-if arch == "Darwin":
-  base_frameworks.append('QtCharts')
-else:
-  base_libs.append('Qt5Charts')
-
-qt_libs = base_libs
-
-cabana_env = qt_env.Clone()
-if arch == "Darwin":
-  cabana_env['CPPPATH'] += [f"{brew_prefix}/include"]
-  cabana_env['LIBPATH'] += [f"{brew_prefix}/lib"]
-
-cabana_libs = [cereal, messaging, visionipc, replay_lib, 'avformat', 'avcodec', 'swresample', 'avutil', 'x264', 'z', 'bz2', 'zstd', 'yuv', 'usb-1.0'] + qt_libs
+# ---- Cabana build ----
+cabana_env = env.Clone()
+cabana_env['CPPPATH'] += [imgui.INCLUDE_DIR, imgui.SRC_DIR]
 opendbc_path = '-DOPENDBC_FILE_PATH=\'"%s"\'' % (cabana_env.Dir("../../opendbc/dbc").abspath)
 cabana_env['CXXFLAGS'] += [opendbc_path]
 
-# build assets
-assets = "assets/assets.cc"
-assets_src = "assets/assets.qrc"
-cabana_env.Command(assets, assets_src, f"rcc $SOURCES -o $TARGET")
-cabana_env.Depends(assets, Glob('/assets/*', exclude=[assets, assets_src, "assets/assets.o"]))
-
-cabana_srcs = ['mainwin.cc', 'streams/pandastream.cc', 'streams/devicestream.cc', 'streams/livestream.cc', 'streams/abstractstream.cc', 'streams/replaystream.cc', 'binaryview.cc', 'historylog.cc', 'videowidget.cc', 'signalview.cc',
-               'streams/routes.cc', 'dbc/dbc.cc', 'dbc/dbcfile.cc', 'dbc/dbcmanager.cc',
-               'utils/export.cc', 'utils/util.cc', 'utils/elidedlabel.cc',
-               'chart/chartswidget.cc', 'chart/chart.cc', 'chart/signalselector.cc', 'chart/tiplabel.cc', 'chart/sparkline.cc',
-               'commands.cc', 'messageswidget.cc', 'streamselector.cc', 'settings.cc', 'panda.cc',
-               'cameraview.cc', 'detailwidget.cc', 'tools/findsimilarbits.cc', 'tools/findsignal.cc', 'tools/routeinfo.cc']
 if arch != "Darwin":
-  cabana_srcs += ['streams/socketcanstream.cc']
-cabana_lib = cabana_env.Library("cabana_lib", cabana_srcs, LIBS=cabana_libs, FRAMEWORKS=base_frameworks)
-cabana_env.Program('_cabana', ['cabana.cc', cabana_lib, assets], LIBS=cabana_libs, FRAMEWORKS=base_frameworks)
+  cabana_env['CXXFLAGS'] += ['-DIMGUI_IMPL_OPENGL_ES3']
+imgui_sources = [
+  f'{imgui.SRC_DIR}/imgui.cpp',
+  f'{imgui.SRC_DIR}/imgui_draw.cpp',
+  f'{imgui.SRC_DIR}/imgui_widgets.cpp',
+  f'{imgui.SRC_DIR}/imgui_tables.cpp',
+  f'{imgui.SRC_DIR}/implot.cpp',
+  f'{imgui.SRC_DIR}/implot_items.cpp',
+  f'{imgui.SRC_DIR}/imgui_impl_opengl3.cpp',
+]
 
-if GetOption('extras'):
-  cabana_env.Program('tests/test_cabana', ['tests/test_runner.cc', 'tests/test_cabana.cc', cabana_lib], LIBS=[cabana_libs])
+cabana_srcs = [
+  'imgui/settings.cc', 'imgui/commands.cc',
+  'imgui/stream.cc', 'imgui/livestream.cc',
+  'imgui/replaystream.cc', 'imgui/devicestream.cc',
+  'imgui/pandastream.cc',
+  'imgui/dbcmanager.cc', 'imgui/dbcfile.cc',
+  'imgui/util.cc', 'imgui/export.cc',
+  'imgui/bootstrap.cc',
+]
+if arch != "Darwin":
+  cabana_srcs += ['imgui/socketcanstream.cc']
 
-output_json_file = 'tools/cabana/dbc/car_fingerprint_to_dbc.json'
-generate_dbc = cabana_env.Command('#' + output_json_file,
-                                  ['dbc/generate_dbc_json.py'],
-                                  "python3 tools/cabana/dbc/generate_dbc_json.py --out " + output_json_file)
-cabana_env.Depends(generate_dbc, ["#common", '#opendbc_repo', "#cereal", "#msgq_repo"])
+# Shared sources built with unique object names so Cabana outputs do not collide with other workspace targets.
+cabana_shared_srcs = {
+  'cabana_dbc': 'dbc/dbc.cc',
+  'cabana_message_list': 'core/message_list.cc',
+  'cabana_persistent_state': 'core/persistent_state.cc',
+  'cabana_workspace_state': 'core/workspace_state.cc',
+  'cabana_launch_config': 'core/launch_config.cc',
+  'cabana_panda': 'panda.cc',
+}
+cabana_shared_objs = [cabana_env.Object(target=name, source=src) for name, src in cabana_shared_srcs.items()]
+
+cabana_base_libs = [common, messaging, cereal, visionipc, replay_lib,
+                    'avformat', 'avcodec', 'swresample', 'avutil',
+                    'x264', 'z', 'bz2', 'zstd', 'yuv', 'usb-1.0',
+                    'capnp', 'kj',
+                    'm', 'ssl', 'crypto', 'pthread']
+
+cabana_backend_lib = cabana_env.Library("cabana_backend_lib", cabana_srcs + cabana_shared_objs, LIBS=cabana_base_libs)
+imgui_core_objs = [cabana_env.Object(target='cabana_' + os.path.splitext(os.path.basename(src))[0], source=src) for src in imgui_sources]
+imgui_core_lib = cabana_env.Library("cabana_imgui_core_lib", imgui_core_objs, LIBS=cabana_base_libs)
+
+cabana_app_env = cabana_env.Clone()
+cabana_app_env['LINKFLAGS'].append('-Wl,-strip-debug')
+if arch == "Darwin":
+  cabana_app_env.ParseConfig('sdl2-config --cflags --libs')
+  cabana_frameworks = ['Cocoa', 'IOKit', 'CoreVideo', 'OpenGL']
+else:
+  cabana_app_env.ParseConfig('pkg-config --cflags --libs sdl2')
+  cabana_frameworks = []
+
+cabana_libs = ['SDL2', 'json11', 'jpeg'] + cabana_base_libs
+if arch != "Darwin":
+  cabana_libs += ['GL', 'dl', 'rt']
+  cabana_app_env['LINKFLAGS'] += ['-Wl,--start-group']
+  cabana_app_env['_LIBFLAGS'] = cabana_app_env.get('_LIBFLAGS', '') + ' -Wl,--end-group'
+
+cabana_main = cabana_app_env.Object('cabana_main', 'imgui/main.cc')
+cabana_app = cabana_app_env.Object('cabana_app', 'imgui/app.cc')
+cabana_app_util = cabana_app_env.Object('cabana_app_util', 'imgui/app_util.cc')
+cabana_app_panels = cabana_app_env.Object('cabana_app_panels', 'imgui/app_panels.cc')
+cabana_app_detail_panels = cabana_app_env.Object('cabana_app_detail_panels', 'imgui/app_detail_panels.cc')
+cabana_app_dialogs = cabana_app_env.Object('cabana_app_dialogs', 'imgui/app_dialogs.cc')
+cabana_app_env.Program('cabana', [cabana_main, cabana_app, cabana_app_util, cabana_app_panels, cabana_app_detail_panels, cabana_app_dialogs, cabana_backend_lib, imgui_core_lib],
+                       LIBS=cabana_libs, FRAMEWORKS=cabana_frameworks)
