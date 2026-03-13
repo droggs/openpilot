@@ -1,5 +1,6 @@
 #include "tools/cabana/imgui/icons.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -119,12 +120,13 @@ static GLuint rasterizeToTexture(NSVGrasterizer *rast, const std::string &svg_st
   GLuint tex = 0;
   glGenTextures(1, &tex);
   glBindTexture(GL_TEXTURE_2D, tex);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  // These icons are pre-rasterized UI assets. Mipmaps/trilinear filtering soften
+  // thin strokes more than they help, since we mostly draw them at fixed sizes.
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, px, px, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-  glGenerateMipmap(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, 0);
 
   return tex;
@@ -176,9 +178,15 @@ static void overlayIcon(ImTextureID tex, float pad_frac) {
   ImDrawList *dl = ImGui::GetWindowDrawList();
   ImVec2 mn = ImGui::GetItemRectMin();
   ImVec2 mx = ImGui::GetItemRectMax();
-  float pad = (mx.y - mn.y) * pad_frac;
+  const float w = mx.x - mn.x;
+  const float h = mx.y - mn.y;
+  const float side = std::min(w, h);
+  const float pad = std::round(side * pad_frac);
+  const float icon_side = std::max(1.0f, side - pad * 2.0f);
+  const float x = std::round(mn.x + (w - icon_side) * 0.5f);
+  const float y = std::round(mn.y + (h - icon_side) * 0.5f);
   ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-  dl->AddImage(tex, ImVec2(mn.x + pad, mn.y + pad), ImVec2(mx.x - pad, mx.y - pad), ImVec2(0, 0), ImVec2(1, 1), col);
+  dl->AddImage(tex, ImVec2(x, y), ImVec2(x + icon_side, y + icon_side), ImVec2(0, 0), ImVec2(1, 1), col);
 }
 
 bool iconButton(const char *str_id, BootstrapIcon icon, const char *tooltip) {
@@ -190,30 +198,34 @@ bool iconButton(const char *str_id, BootstrapIcon icon, const char *tooltip) {
     return pressed;
   }
   bool pressed = ImGui::Button(str_id, ImVec2(h, h));
-  overlayIcon(tex, 0.2f);
+  overlayIcon(tex, 0.15f);
   if (tooltip && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tooltip);
   return pressed;
 }
 
 bool smallIconButton(const char *str_id, BootstrapIcon icon, const char *tooltip) {
+  const float h = std::round(ImGui::GetTextLineHeight());
   ImTextureID tex = getBootstrapIcon(icon);
   if (!tex) {
-    bool pressed = ImGui::SmallButton(str_id);
+    bool pressed = ImGui::Button(str_id, ImVec2(h, h));
     if (tooltip && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tooltip);
     return pressed;
   }
-  bool pressed = ImGui::SmallButton(str_id);
-  overlayIcon(tex, 0.15f);
+  bool pressed = ImGui::Button(str_id, ImVec2(h, h));
+  overlayIcon(tex, 0.10f);
   if (tooltip && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tooltip);
   return pressed;
 }
 
 void drawIcon(BootstrapIcon icon, float size) {
   if (size <= 0) size = ImGui::GetTextLineHeight();
+  size = std::round(size);
   ImTextureID tex = getBootstrapIcon(icon);
   if (tex) {
     ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
     ImVec2 pos = ImGui::GetCursorScreenPos();
+    pos.x = std::round(pos.x);
+    pos.y = std::round(pos.y);
     ImGui::Dummy(ImVec2(size, size));
     ImGui::GetWindowDrawList()->AddImage(tex, pos, ImVec2(pos.x + size, pos.y + size), ImVec2(0, 0), ImVec2(1, 1), col);
   } else {

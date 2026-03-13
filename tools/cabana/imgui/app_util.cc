@@ -498,8 +498,10 @@ static std::string resolveFontFile(const std::string &family, bool monospace = f
   return popenReadLine("fc-match -f '%{file}' '" + pattern + "' 2>/dev/null");
 }
 
+static ImFont *s_bold_font = nullptr;
 static ImFont *s_mono_font = nullptr;
 
+ImFont *cabanaBoldFont() { return s_bold_font ? s_bold_font : ImGui::GetFont(); }
 ImFont *cabanaMonoFont() { return s_mono_font ? s_mono_font : ImGui::GetFont(); }
 
 void loadCabanaFonts() {
@@ -508,11 +510,15 @@ void loadCabanaFonts() {
   io.Fonts->TexGlyphPadding = 1;
 
   const float font_px = std::max(15.5f, 13.0f * cabanaUiScale());
+  const float paused_font_px = std::max(16.0f, 16.0f * cabanaUiScale());
   ImFontConfig config;
   config.OversampleH = 3;
   config.OversampleV = 3;
   config.RasterizerMultiply = 1.05f;
   config.PixelSnapH = false;
+
+  s_bold_font = nullptr;
+  s_mono_font = nullptr;
 
   const std::string font_path = resolveFontFile("sans-serif");
   if (!font_path.empty()) {
@@ -520,6 +526,14 @@ void loadCabanaFonts() {
   }
   if (!io.FontDefault) {
     io.FontDefault = io.Fonts->AddFontDefault();
+  }
+
+  const std::string bold_path = resolveFontFile("sans-serif:style=Bold");
+  if (!bold_path.empty()) {
+    s_bold_font = io.Fonts->AddFontFromFileTTF(bold_path.c_str(), paused_font_px, &config);
+  }
+  if (!s_bold_font) {
+    s_bold_font = io.FontDefault;
   }
 
   // Load monospace font for hex byte display

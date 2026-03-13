@@ -43,6 +43,7 @@ void applyCabanaLightStyle(float scale);
 bool detectSystemDarkTheme();
 void applyCabanaTheme(int theme, float scale);
 void loadCabanaFonts();
+ImFont *cabanaBoldFont();
 ImFont *cabanaMonoFont();
 bool saveScreenshot(const std::string &path, int width, int height);
 bool signalFitsInMessage(const cabana::Signal &sig, int msg_size_bytes);
@@ -52,4 +53,3 @@ std::string streamLabel(VisionStreamType type);
 void nv12ToRgba(const uint8_t *y_plane, const uint8_t *uv_plane, int width, int height, int stride, std::vector<uint8_t> &rgba);
 void writePersistentState(const CabanaPersistentState &state);
 CabanaPersistentState readPersistentState();
-

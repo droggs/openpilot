@@ -77,6 +77,7 @@ void CabanaImguiApp::drawMessagesPanel(const ImVec2 &size) {
     ImGui::TableSetupColumn("Freq", ImGuiTableColumnFlags_WidthFixed, 60.0f);
     ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 70.0f);
     ImGui::TableSetupColumn("Bytes", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
+    ImGui::TableSetupScrollFreeze(0, 2);
     ImGui::TableHeadersRow();
 
     // Per-column filter row
@@ -327,6 +328,24 @@ void CabanaImguiApp::drawVideoPanel(const ImVec2 &size) {
                                 : std::string("Video");
   ImGui::TextUnformatted(title.c_str());
   const bool is_dummy = !stream_ || dynamic_cast<DummyStream *>(stream_);
+  const bool paused = stream_ && stream_->isPaused();
+  auto drawPausedOverlay = [&](const ImVec2 &image_min, const ImVec2 &image_max) {
+    if (!paused) return;
+
+    ImDrawList *overlay_draw = ImGui::GetWindowDrawList();
+    const char *paused_text = "PAUSED";
+    ImFont *font = cabanaBoldFont();
+    const float font_size = font ? font->LegacySize : std::round(std::max(ImGui::GetFontSize(), 16.0f * cabanaUiScale()));
+    const ImVec2 text_size = font ? font->CalcTextSizeA(font_size, 10000.0f, 0.0f, paused_text)
+                                  : ImGui::CalcTextSize(paused_text);
+    const float x = std::round((image_min.x + image_max.x - text_size.x) * 0.5f);
+    const float y = std::round((image_min.y + image_max.y - text_size.y) * 0.5f);
+    const ImU32 text_col = IM_COL32(200, 200, 200, static_cast<int>(255.0f * 0.7f));
+    overlay_draw->AddText(font, font_size, ImVec2(x, y), text_col, paused_text);
+    if (font == ImGui::GetIO().FontDefault) {
+      overlay_draw->AddText(font, font_size, ImVec2(x + 1.0f, y), text_col, paused_text);
+    }
+  };
   if (!is_dummy) {
     ImGui::SameLine();
     ImGui::TextDisabled("%s", stream_->liveStreaming() ? "live" : "replay");
@@ -368,7 +387,6 @@ void CabanaImguiApp::drawVideoPanel(const ImVec2 &size) {
   const GLuint texture = video_->texture();
   const ImVec2 tex_size = video_->textureSize();
   const float aspect = texture != 0 && tex_size.x > 0.0f && tex_size.y > 0.0f ? tex_size.x / tex_size.y : 16.0f / 9.0f;
-  const bool paused = stream_ && stream_->isPaused();
   ImVec2 image_size(avail_width, avail_width / aspect);
   if (image_size.y > avail_height) {
     image_size.y = avail_height;
@@ -404,13 +422,7 @@ void CabanaImguiApp::drawVideoPanel(const ImVec2 &size) {
       drawAlertOverlay(draw, *alert, image_min.x + 8.0f, image_min.y + 8.0f, image_size.x - 16.0f);
     }
   }
-  if (paused) {
-    draw->AddRectFilled(image_min, image_max, IM_COL32(0, 0, 0, 80), 0.0f);
-    const char *paused_text = "PAUSED";
-    ImVec2 text_size = ImGui::CalcTextSize(paused_text);
-    draw->AddText(ImVec2((image_min.x + image_max.x - text_size.x) * 0.5f, (image_min.y + image_max.y - text_size.y) * 0.5f),
-                  IM_COL32(220, 220, 220, 160), paused_text);
-  }
+  drawPausedOverlay(image_min, image_max);
   // Scrub/hover thumbnail (Qt shows full-size only when paused, small otherwise)
   {
     double hover_sec = timeline_hover_sec_ >= 0 ? timeline_hover_sec_ : chart_hover_sec_;
@@ -492,13 +504,7 @@ void CabanaImguiApp::drawVideoPanel(const ImVec2 &size) {
       draw->AddText(ImVec2((image_min.x + image_max.x - text_size.x) * 0.5f, (image_min.y + image_max.y - text_size.y) * 0.5f),
                     IM_COL32(187, 187, 187, 255), no_video);
     }
-    if (stream_ && stream_->isPaused()) {
-      draw->AddRectFilled(image_min, image_max, IM_COL32(0, 0, 0, 80), 0.0f);
-      const char *paused_text = "PAUSED";
-      ImVec2 text_size = ImGui::CalcTextSize(paused_text);
-      draw->AddText(ImVec2((image_min.x + image_max.x - text_size.x) * 0.5f, (image_min.y + image_max.y - text_size.y) * 0.5f),
-                    IM_COL32(220, 220, 220, 160), paused_text);
-    }
+    drawPausedOverlay(image_min, image_max);
   } // end if (video_) / else replay
   ImGui::Spacing();
   if (!is_dummy) {
@@ -727,6 +733,7 @@ void CabanaImguiApp::drawSignalsPanel(const ImVec2 &size) {
         ImGui::PushID(sig->name.c_str());
         const bool is_selected = selected_signal_name_ == sig->name;
         const bool is_hovered_from_binary = !is_selected && hovered_signal_name_ == sig->name;
+        const bool is_highlighted = is_selected || is_hovered_from_binary;
         bool plotted = has_selected_id_ && findChart(selected_id_, sig) != nullptr;
 
         // Collapse All: force all nodes closed this frame
@@ -742,14 +749,15 @@ void CabanaImguiApp::drawSignalsPanel(const ImVec2 &size) {
         ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
         if (is_selected) node_flags |= ImGuiTreeNodeFlags_Selected;
 
-        // Highlight colors for selection / binary hover
+        // Match Qt: selection gets a row background, hover only changes the signal's own accents.
         if (is_selected) {
           ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.18f, 0.28f, 0.40f, 0.85f));
-          ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.20f, 0.32f, 0.46f, 0.95f));
-        } else if (is_hovered_from_binary) {
-          ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.16f, 0.24f, 0.36f, 0.60f));
-          ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.18f, 0.28f, 0.40f, 0.75f));
-          node_flags |= ImGuiTreeNodeFlags_Selected;  // highlight the row
+          ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.18f, 0.28f, 0.40f, 0.85f));
+          ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.18f, 0.28f, 0.40f, 0.85f));
+        } else {
+          ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
+          ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
+          ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0, 0, 0, 0));
         }
 
         // Build header label: "SignalName ■ [M/m] [unit]  value"
@@ -792,7 +800,7 @@ void CabanaImguiApp::drawSignalsPanel(const ImVec2 &size) {
           if (ImGui::MenuItem("Remove Signal")) removeSelectedSignal();
           ImGui::EndPopup();
         }
-        if (is_selected || is_hovered_from_binary) ImGui::PopStyleColor(2);
+        ImGui::PopStyleColor(3);
 
         // Same-line items after the tree arrow: numbered color badge (matching Qt), mux indicator, name, value, sparkline, plot/remove buttons
         ImGui::SameLine();
@@ -814,7 +822,7 @@ void CabanaImguiApp::drawSignalsPanel(const ImVec2 &size) {
                             ImGui::ColorConvertFloat4ToU32(badge_col), 3.0f);
           // Center text in badge
           ImVec2 text_pos(badge_pos.x + (badge_w - text_size.x) * 0.5f, badge_pos.y);
-          dl->AddText(text_pos, is_selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(0, 0, 0, 255), num_buf);
+          dl->AddText(text_pos, is_highlighted ? IM_COL32(255, 255, 255, 255) : IM_COL32(0, 0, 0, 255), num_buf);
           ImGui::Dummy(ImVec2(badge_w, badge_h));
         }
         ImGui::SameLine();
@@ -856,18 +864,34 @@ void CabanaImguiApp::drawSignalsPanel(const ImVec2 &size) {
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
             ImGui::PlotLines(("##sp_" + sig->name).c_str(), sp.values.data(), static_cast<int>(sp.values.size()), 0, nullptr, sp.min, sp.max, ImVec2(60.0f, 14.0f));
             ImGui::PopStyleColor(2);
-            // Min/max labels when selected/hovered (matches Qt sparkline overlay)
-            if (!sp.values.empty() && (is_selected || is_hovered_from_binary)) {
-              ImGui::SameLine();
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-              char mm_buf[64];
-              std::snprintf(mm_buf, sizeof(mm_buf), "%.3g..%.3g", sp.min, sp.max);
-              ImGui::SmallButton(mm_buf);  // Use button for visual box, but non-interactive
-              ImGui::PopStyleColor();
+            // Fixed stats area keeps rows stable while matching Qt's hover behavior.
+            ImGui::SameLine();
+            const float stats_w = 68.0f;
+            const float stats_h = ImGui::GetFrameHeight();
+            const ImVec2 stats_pos = ImGui::GetCursorScreenPos();
+            ImGui::Dummy(ImVec2(stats_w, stats_h));
+            ImDrawList *stats_dl = ImGui::GetWindowDrawList();
+            ImFont *stats_font = ImGui::GetFont();
+            const float stats_font_size = std::max(11.0f, ImGui::GetFontSize() * 0.78f);
+            const ImU32 stats_col = IM_COL32(170, 170, 170, 255);
+            if (!sp.values.empty() && is_highlighted) {
+              char max_buf[32], min_buf[32];
+              std::snprintf(max_buf, sizeof(max_buf), "%.3g", sp.max);
+              std::snprintf(min_buf, sizeof(min_buf), "%.3g", sp.min);
+              const ImVec2 min_size = stats_font->CalcTextSizeA(stats_font_size, 10000.0f, 0.0f, min_buf);
+              const float line_x = stats_pos.x + 1.0f;
+              stats_dl->AddLine(ImVec2(line_x, stats_pos.y + 2.0f), ImVec2(line_x, stats_pos.y + stats_h - 2.0f), stats_col, 1.0f);
+              stats_dl->AddText(stats_font, stats_font_size, ImVec2(stats_pos.x + 6.0f, stats_pos.y + 1.0f), stats_col, max_buf);
+              stats_dl->AddText(stats_font, stats_font_size,
+                                ImVec2(stats_pos.x + 6.0f, stats_pos.y + stats_h - min_size.y - 1.0f),
+                                stats_col, min_buf);
             } else if (sig->type == cabana::Signal::Type::Multiplexed && sp.freq > 0) {
-              // Multiplexed signal frequency when not highlighted (matches Qt)
-              ImGui::SameLine();
-              ImGui::TextDisabled("%.2g hz", sp.freq);
+              char freq_buf[32];
+              std::snprintf(freq_buf, sizeof(freq_buf), "%.2g hz", sp.freq);
+              const ImVec2 freq_size = stats_font->CalcTextSizeA(stats_font_size, 10000.0f, 0.0f, freq_buf);
+              stats_dl->AddText(stats_font, stats_font_size,
+                                ImVec2(stats_pos.x + 5.0f, stats_pos.y + (stats_h - freq_size.y) * 0.5f),
+                                stats_col, freq_buf);
             }
           }
         } else {
