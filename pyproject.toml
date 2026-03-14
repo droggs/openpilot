@@ -34,6 +34,7 @@ dependencies = [
   "libyuv @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=libyuv",
   "zstd @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=zstd",
   "ncurses @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=ncurses",
+  "qt5 @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=qt5",
   "zeromq @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=zeromq",
   "git-lfs @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=git-lfs",
   "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=gcc-arm-none-eabi",

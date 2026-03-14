@@ -38,6 +38,8 @@ assert arch in [
 ]
 
 pkg_names = ['bzip2', 'capnproto', 'eigen', 'ffmpeg', 'libjpeg', 'libyuv', 'ncurses', 'zeromq', 'zstd']
+if arch != "larch64":
+  pkg_names.append('qt5')
 pkgs = [importlib.import_module(name) for name in pkg_names]
 
 
@@ -47,7 +49,7 @@ pkgs = [importlib.import_module(name) for name in pkg_names]
 # be distributed with all Linux distros and macOS, or
 # vendored in commaai/dependencies.
 allowed_system_libs = {
-  "EGL", "GLESv2", "GL", "Qt5Charts", "Qt5Core", "Qt5Gui", "Qt5Widgets",
+  "EGL", "GLESv2", "GL",
   "crypto", "dl", "drm", "gbm", "m", "pthread", "ssl", "usb-1.0",
 }
 
