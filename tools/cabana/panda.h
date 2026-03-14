@@ -11,7 +11,9 @@
 
 #include <atomic>
 #include <mutex>
-#include <libusb-1.0/libusb.h>
+
+struct libusb_context;
+struct libusb_device_handle;
 
 #include "cereal/gen/cpp/car.capnp.h"
 #include "cereal/gen/cpp/log.capnp.h"
