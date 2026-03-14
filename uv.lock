@@ -116,12 +116,12 @@ wheels = [
 [[package]]
 name = "bzip2"
 version = "1.0.8"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=bzip2&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=bzip2&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "capnproto"
 version = "1.0.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=capnproto&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=capnproto&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "casadi"
@@ -371,7 +371,7 @@ wheels = [
 [[package]]
 name = "eigen"
 version = "3.4.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "execnet"
@@ -385,7 +385,7 @@ wheels = [
 [[package]]
 name = "ffmpeg"
 version = "7.1.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "fonttools"
@@ -432,7 +432,7 @@ wheels = [
 [[package]]
 name = "gcc-arm-none-eabi"
 version = "13.2.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "ghp-import"
@@ -449,7 +449,7 @@ wheels = [
 [[package]]
 name = "git-lfs"
 version = "3.6.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "google-crc32c"
@@ -498,7 +498,7 @@ wheels = [
 [[package]]
 name = "imgui"
 version = "1.92.7"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=imgui&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=imgui&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "iniconfig"
@@ -578,7 +578,7 @@ wheels = [
 [[package]]
 name = "libjpeg"
 version = "3.1.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libjpeg&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libjpeg&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "libusb1"
@@ -594,7 +594,7 @@ wheels = [
 [[package]]
 name = "libyuv"
 version = "1922.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libyuv&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libyuv&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "markdown"
@@ -746,12 +746,12 @@ wheels = [
 [[package]]
 name = "nanosvg"
 version = "0.0.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=nanosvg&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=nanosvg&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "ncurses"
 version = "6.5"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "numpy"
@@ -1672,7 +1672,7 @@ wheels = [
 [[package]]
 name = "zeromq"
 version = "4.3.5"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zeromq&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zeromq&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
 
 [[package]]
 name = "zstandard"
@@ -1702,4 +1702,4 @@ wheels = [
 [[package]]
 name = "zstd"
 version = "1.5.6"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=releases#1661b4e60bb500aa99b6299aefc7ba5dbeb0ba28" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=releases#6dc807c58337a042299899f2f5be2fccc1c41c3c" }
