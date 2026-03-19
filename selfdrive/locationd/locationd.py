@@ -234,6 +234,8 @@ class LocationEstimator:
     livePose.inputsOK = inputs_valid
     livePose.posenetOK = not std_spike or self.car_speed <= 5.0
     livePose.sensorsOK = sensors_valid
+    if not np.isnan(self.kf.t):
+      livePose.timestamp = int(self.kf.t * 1e9)
 
     return msg
 

@@ -180,6 +180,7 @@ def migrate_liveLocationKalman(msgs):
       lp_field.x, lp_field.y, lp_field.z = llk_field.value or nans
       lp_field.xStd, lp_field.yStd, lp_field.zStd = llk_field.std or nans
       lp_field.valid = llk_field.valid
+    m.livePose.timestamp = msg.logMonoTime
     for flag in ["inputsOK", "posenetOK", "sensorsOK"]:
       setattr(m.livePose, flag, getattr(msg.liveLocationKalmanDEPRECATED, flag))
     ops.append((index, m.as_reader()))
