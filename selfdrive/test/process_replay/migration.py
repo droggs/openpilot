@@ -175,12 +175,12 @@ def migrate_liveLocationKalman(msgs):
     m = messaging.new_message('livePose')
     m.valid = msg.valid
     m.logMonoTime = msg.logMonoTime
+    m.livePose.timestamp = msg.logMonoTime
     for field in ["orientationNED", "velocityDevice", "accelerationDevice", "angularVelocityDevice"]:
       lp_field, llk_field = getattr(m.livePose, field), getattr(msg.liveLocationKalmanDEPRECATED, field)
       lp_field.x, lp_field.y, lp_field.z = llk_field.value or nans
       lp_field.xStd, lp_field.yStd, lp_field.zStd = llk_field.std or nans
       lp_field.valid = llk_field.valid
-    m.livePose.timestamp = msg.logMonoTime
     for flag in ["inputsOK", "posenetOK", "sensorsOK"]:
       setattr(m.livePose, flag, getattr(msg.liveLocationKalmanDEPRECATED, flag))
     ops.append((index, m.as_reader()))
