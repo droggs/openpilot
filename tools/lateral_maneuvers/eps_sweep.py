@@ -35,12 +35,12 @@ import cereal.messaging as messaging
 SWEEP_FILE = "/tmp/eps_sweep.json"
 
 # stock CANFD values
-DEFAULTS = {"delta_up": 10, "delta_down": 15, "steer_max": 270}
+DEFAULTS = {"delta_up": 10, "delta_down": 10, "steer_max": 270}
 
 @dataclass
 class SweepState:
   delta_up: int = 10
-  delta_down: int = 15
+  delta_down: int = 10
   steer_max: int = 270
 
   def write(self):
