@@ -22,6 +22,7 @@ MAX_VOLUME = 1.0
 MIN_VOLUME = 0.1
 ALERT_RAMP_TIME = 4 # seconds to ramp critical alerts to max volume
 ALERT_MAX_TIME = 8 # seconds before critical alerts switch to the max sound
+LOCAL_VOLUME_SCALE = 0.0 # local: global output scale for all alert sounds (1.0 = stock, 0.0 = silent)
 SELFDRIVE_STATE_TIMEOUT = 5 # 5 seconds
 FILTER_DT = 1. / (micd.SAMPLE_RATE / micd.FFT_SAMPLES)
 
@@ -143,7 +144,7 @@ class Soundd(QuietMode):
           self.pending_stop = False
           break
 
-    return ret * self.current_volume
+    return ret * self.current_volume * LOCAL_VOLUME_SCALE
 
   def callback(self, data_out: np.ndarray, frames: int, time, status) -> None:
     if status:
