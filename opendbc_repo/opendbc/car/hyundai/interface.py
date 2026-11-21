@@ -134,6 +134,11 @@ class CarInterface(CarInterfaceBase):
 
     ret.radarUnavailable = RADAR_START_ADDR not in fingerprint[1] or Bus.radar not in DBC[ret.carFingerprint]
     ret.openpilotLongitudinalControl = alpha_long and ret.alphaLongitudinalAvailable
+    # local: under openpilot long this car's radar keeps sending its 0x500 tracks after 0x7d0 is
+    # silenced, and radard paired the model's leads with stopped roadside tracks 5-12 m off to the
+    # side (11 of 14 hard brakes in the 2026-11-20/21 logs). Use camera leads only.
+    if candidate == CAR.HYUNDAI_IONIQ_EV_LTD and ret.openpilotLongitudinalControl:
+      ret.radarUnavailable = True
     ret.pcmCruise = not ret.openpilotLongitudinalControl
     ret.longitudinalActuatorDelay = 0.5
 
