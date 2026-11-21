@@ -1,6 +1,6 @@
 from opendbc.car import Bus, get_safety_config, structs, uds
 from opendbc.car.hyundai.hyundaicanfd import CanBus
-from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, HyundaiSafetyFlags
+from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, HyundaiSafetyFlags, CarControllerParams
 from opendbc.car.hyundai.radar_interface import RADAR_START_ADDR
 from opendbc.car.interfaces import CarInterfaceBase
 from opendbc.car.disable_ecu import disable_ecu
@@ -120,6 +120,11 @@ class CarInterface(CarInterfaceBase):
     ret.steerActuatorDelay = 0.1
     ret.steerLimitTimer = 0.4
     CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+    # local: this car's torque_data entry was measured at its stock STEER_MAX of 255. Our STEER_MAX
+    # change gives more torque per unit of command, so scale the offline latAccelFactor to match.
+    # Without it torqued's +/-30% sanity window (max 2.30) cannot reach the ~2.9 it measures at 384.
+    if candidate == CAR.HYUNDAI_IONIQ_EV_LTD:
+      ret.lateralTuning.torque.latAccelFactor *= CarControllerParams(ret).STEER_MAX / 255
 
     if ret.flags & HyundaiFlags.ALT_LIMITS:
       ret.safetyConfigs[-1].safetyParam |= HyundaiSafetyFlags.ALT_LIMITS.value
