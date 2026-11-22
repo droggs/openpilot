@@ -24,6 +24,47 @@ MAX_ANGLE = 85
 MAX_ANGLE_FRAMES = 89
 MAX_ANGLE_CONSECUTIVE_FRAMES = 2
 
+# local: the 2019 Ioniq EV LTD's EPS faults 0.97 s after the angle passes 90 deg with a steer request, whatever the
+# torque. The two-frame cut above doesn't reset its timer, a release of 12+ frames does. So fade the torque
+# out and fully release before the limit, until the wheel comes back. Panda always allows a zero-torque release.
+RELEASE_COUNT_ANGLE = 88   # deg, start counting just under the EPS's 90
+RELEASE_FADE_FRAME = 55    # start fading the torque
+RELEASE_FRAME = 85         # fully released, 0.12 s before the EPS would fault
+RELEASE_RESUME_ANGLE = 85  # deg
+RELEASE_MIN_FRAMES = 20    # long enough to reset the EPS timer
+
+
+class HighAngleRelease:
+  def __init__(self):
+    self.count = 0
+    self.released = False
+    self.release_frames = 0
+    self.inactive_frames = 0
+
+  def update(self, angle: float, lat_active: bool, torque: int, steer_max: int) -> tuple[int, bool]:
+    self.inactive_frames = 0 if lat_active else self.inactive_frames + 1
+    if self.released:
+      self.release_frames += 1
+      if abs(angle) >= RELEASE_RESUME_ANGLE or self.release_frames < RELEASE_MIN_FRAMES:
+        return 0, False
+      self.released = False
+      self.count = 0
+
+    # a short drop of lateral doesn't reset the EPS's timer, so it doesn't reset ours
+    counting = abs(angle) >= RELEASE_COUNT_ANGLE and self.inactive_frames < RELEASE_MIN_FRAMES
+    self.count = self.count + 1 if counting else 0
+    if self.count >= RELEASE_FRAME:
+      self.released = True
+      self.release_frames = 0
+      return 0, False
+    if not lat_active:
+      return 0, False
+    if self.count > RELEASE_FADE_FRAME:
+      cap = int(steer_max * (RELEASE_FRAME - self.count) / (RELEASE_FRAME - RELEASE_FADE_FRAME))
+      torque = max(-cap, min(cap, torque))
+    return torque, True
+
+
 # On some HKG CAN and CAN FD non-CANFD_ALT_BUTTONS, the cancel button (CF_Clu_CruiseSwState / CRUISE_BUTTONS = 4) is
 # a pause/resume toggle, not a dedicated cancel. Firing it mid-brake inadvertently can cause a re-enable attempt
 # and triggers the "SCC Conditions Not Met" alert. Delaying the button send lets factory SCC disengage
@@ -69,6 +110,7 @@ class CarController(CarControllerBase, CcncCarController, EsccCarController, Lea
     self.params = CarControllerParams(CP)
     self.packer = CANPacker(dbc_names[Bus.pt])
     self.angle_limit_counter = 0
+    self.high_angle_release = HighAngleRelease() if CP.carFingerprint == CAR.HYUNDAI_IONIQ_EV_LTD else None
 
     self.accel_last = 0
     self.apply_torque_last = 0
@@ -97,6 +139,9 @@ class CarController(CarControllerBase, CcncCarController, EsccCarController, Lea
 
     if not CC.latActive:
       apply_torque = 0
+    if self.high_angle_release is not None:
+      apply_torque, apply_steer_req = self.high_angle_release.update(CS.out.steeringAngleDeg, CC.latActive, apply_torque,
+                                                                     self.params.STEER_MAX)
 
     self.apply_torque_last = apply_torque
 
@@ -134,7 +179,8 @@ class CarController(CarControllerBase, CcncCarController, EsccCarController, Lea
     else:
       # Hold torque with induced temporary fault when cutting the actuation bit
       # FIXME: we don't use this with CAN FD?
-      torque_fault = CC.latActive and not apply_steer_req
+      # local: a full release must not claim a fault, the induced one is only for cuts that hold torque
+      torque_fault = CC.latActive and not apply_steer_req and self.high_angle_release is None
 
       can_sends.extend(self.create_can_msgs(apply_steer_req, apply_torque, torque_fault, set_speed_in_units, accel,
                                             stopping, hud_control, actuators, CS, CC))

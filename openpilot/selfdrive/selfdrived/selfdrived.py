@@ -503,6 +503,11 @@ class SelfdriveD:
       # TODO: lac.saturated includes speed and other checks, should be pulled out
       if undershooting and turning and lac.saturated:
         self.events.add(EventName.steerSaturated)
+      # local: the Ioniq's carcontroller releases steering past 85 deg before the EPS would fault. The torque
+      # mismatch hides that from lac.saturated, so show "take control" when openpilot still wanted torque.
+      elif (self.CP.carFingerprint == "HYUNDAI_IONIQ_EV_LTD" and self.sm['carControl'].latActive and abs(CS.steeringAngleDeg) >= 85 and
+            self.sm['carOutput'].actuatorsOutput.torque == 0 and abs(self.sm['carControl'].actuators.torque) > 0.1):
+        self.events.add(EventName.steerSaturated)
 
     # Check for FCW
     stock_long_is_braking = self.enabled and not self.CP.openpilotLongitudinalControl and CS.aEgo < -1.25
