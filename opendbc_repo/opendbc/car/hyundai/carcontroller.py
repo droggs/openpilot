@@ -27,8 +27,8 @@ MAX_ANGLE_CONSECUTIVE_FRAMES = 2
 # local: the 2019 Ioniq EV LTD's EPS faults 0.97 s after the angle passes 90 deg with a steer request, whatever the
 # torque. The two-frame cut above doesn't reset its timer, a release of 12+ frames does. So fade the torque
 # out and fully release before the limit, until the wheel comes back. Panda always allows a zero-torque release.
+# The fade never drops faster than STEER_DELTA_DOWN a frame: the EPS also faults within ~0.1 s of faster drops.
 RELEASE_COUNT_ANGLE = 88   # deg, start counting just under the EPS's 90
-RELEASE_FADE_FRAME = 55    # start fading the torque
 RELEASE_FRAME = 85         # fully released, 0.12 s before the EPS would fault
 RELEASE_RESUME_ANGLE = 85  # deg
 RELEASE_MIN_FRAMES = 20    # long enough to reset the EPS timer
@@ -41,7 +41,7 @@ class HighAngleRelease:
     self.release_frames = 0
     self.inactive_frames = 0
 
-  def update(self, angle: float, lat_active: bool, torque: int, steer_max: int) -> tuple[int, bool]:
+  def update(self, angle: float, lat_active: bool, torque: int, steer_max: int, delta_down: int) -> tuple[int, bool]:
     self.inactive_frames = 0 if lat_active else self.inactive_frames + 1
     if self.released:
       self.release_frames += 1
@@ -59,9 +59,9 @@ class HighAngleRelease:
       return 0, False
     if not lat_active:
       return 0, False
-    if self.count > RELEASE_FADE_FRAME:
-      cap = int(steer_max * (RELEASE_FRAME - self.count) / (RELEASE_FRAME - RELEASE_FADE_FRAME))
-      torque = max(-cap, min(cap, torque))
+    # the ceiling reaches 0 at RELEASE_FRAME and falls by at most delta_down a frame
+    cap = min(steer_max, delta_down * (RELEASE_FRAME - self.count))
+    torque = max(-cap, min(cap, torque))
     return torque, True
 
 
@@ -141,7 +141,7 @@ class CarController(CarControllerBase, CcncCarController, EsccCarController, Lea
       apply_torque = 0
     if self.high_angle_release is not None:
       apply_torque, apply_steer_req = self.high_angle_release.update(CS.out.steeringAngleDeg, CC.latActive, apply_torque,
-                                                                     self.params.STEER_MAX)
+                                                                     self.params.STEER_MAX, self.params.STEER_DELTA_DOWN)
 
     self.apply_torque_last = apply_torque
 
