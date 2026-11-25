@@ -27,6 +27,18 @@ class CarInterface(CarInterfaceBase):
   DRIVABLE_GEARS = (structs.CarState.GearShifter.sport, structs.CarState.GearShifter.manumatic)
 
   @staticmethod
+  def configure_torque_tune(candidate, tune, steering_angle_deadzone_deg=0.0):
+    CarInterfaceBase.configure_torque_tune(candidate, tune, steering_angle_deadzone_deg)
+    # local: this car's torque_data entry was measured at its stock STEER_MAX of 255. Our STEER_MAX
+    # change gives more torque per unit of command, so scale the offline latAccelFactor to match.
+    # Without it torqued's +/-30% sanity window (max 2.30) cannot reach the ~2.9 it measures at 384.
+    # An override rather than a conversion in _get_params, so sunnypilot's second call (Enforce
+    # Torque Control, NNLC) scales as well, as mazda/interface.py does.
+    if candidate == CAR.HYUNDAI_IONIQ_EV_LTD:
+      CP = structs.CarParams(carFingerprint=candidate, flags=int(CAR(candidate).config.flags))
+      tune.torque.latAccelFactor *= CarControllerParams(CP).STEER_MAX / 255
+
+  @staticmethod
   def _get_params(ret: structs.CarParams, candidate, fingerprint, car_fw, alpha_long, is_release, docs) -> structs.CarParams:
     ret.brand = "hyundai"
 
@@ -119,12 +131,7 @@ class CarInterface(CarInterfaceBase):
     ret.centerToFront = ret.wheelbase * 0.4
     ret.steerActuatorDelay = 0.1
     ret.steerLimitTimer = 0.4
-    CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
-    # local: this car's torque_data entry was measured at its stock STEER_MAX of 255. Our STEER_MAX
-    # change gives more torque per unit of command, so scale the offline latAccelFactor to match.
-    # Without it torqued's +/-30% sanity window (max 2.30) cannot reach the ~2.9 it measures at 384.
-    if candidate == CAR.HYUNDAI_IONIQ_EV_LTD:
-      ret.lateralTuning.torque.latAccelFactor *= CarControllerParams(ret).STEER_MAX / 255
+    CarInterface.configure_torque_tune(candidate, ret.lateralTuning)
 
     if ret.flags & HyundaiFlags.ALT_LIMITS:
       ret.safetyConfigs[-1].safetyParam |= HyundaiSafetyFlags.ALT_LIMITS.value
