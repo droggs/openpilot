@@ -23,6 +23,9 @@ MIN_VOLUME = 0.1
 ALERT_RAMP_TIME = 4 # seconds to ramp critical alerts to max volume
 ALERT_MAX_TIME = 8 # seconds before critical alerts switch to the max sound
 LOCAL_VOLUME_SCALE = 0.0 # local: global output scale for all alert sounds (1.0 = stock, 0.0 = silent)
+# local: except the later driver-monitoring stages, so a lockout can still be heard coming (stage 1 stays silent)
+LOCAL_DM_VOLUME_SCALE = 0.5
+LOCAL_DM_AUDIBLE_ALERTS = ("driverDistracted2/", "driverDistracted3/", "driverUnresponsive2/", "driverUnresponsive3/")
 SELFDRIVE_STATE_TIMEOUT = 5 # 5 seconds
 FILTER_DT = 1. / (micd.SAMPLE_RATE / micd.FFT_SAMPLES)
 
@@ -75,6 +78,10 @@ critical_max_sounds = {
   AudibleAlert.warningImmediateUser: DM_CRITICAL_MAX,
 }
 
+def local_output_scale(alert_type: str) -> float:
+  return LOCAL_DM_VOLUME_SCALE if alert_type.startswith(LOCAL_DM_AUDIBLE_ALERTS) else LOCAL_VOLUME_SCALE
+
+
 def check_selfdrive_timeout_alert(sm):
   ss_missing = time.monotonic() - sm.recv_time['selfdriveState']
 
@@ -101,6 +108,7 @@ class Soundd(QuietMode):
 
     self.selfdrive_timeout_alert = False
     self.pending_stop = False
+    self.local_scale = LOCAL_VOLUME_SCALE
 
     self.spl_filter_weighted = FirstOrderFilter(0, 2.5, FILTER_DT, initialized=False)
 
@@ -144,7 +152,7 @@ class Soundd(QuietMode):
           self.pending_stop = False
           break
 
-    return ret * self.current_volume * LOCAL_VOLUME_SCALE
+    return ret * self.current_volume * self.local_scale
 
   def callback(self, data_out: np.ndarray, frames: int, time, status) -> None:
     if status:
@@ -173,8 +181,10 @@ class Soundd(QuietMode):
   def get_audible_alert(self, sm):
     if sm.updated['selfdriveState']:
       new_alert = sm['selfdriveState'].alertSound.raw
+      self.local_scale = local_output_scale(sm['selfdriveState'].alertType)
       self.update_alert(new_alert)
     elif check_selfdrive_timeout_alert(sm):
+      self.local_scale = LOCAL_VOLUME_SCALE
       self.update_alert(AudibleAlert.warningImmediateSystem)
       self.selfdrive_timeout_alert = True
     elif self.selfdrive_timeout_alert:
